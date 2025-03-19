@@ -22,12 +22,33 @@
     <LoadingOverlay v-if="isLoading" />
 
     <!-- Auth Modal -->
-    <AuthModal v-if="showAuthModal" @success="handleAuthSuccess" @close="handleAuthModalClose" />
+    <Transition name="fade">
+      <div 
+        v-if="showAuthModal" 
+        class="fixed inset-0 z-[100] overflow-y-auto"
+        @vue:before-mount="() => console.log('Auth Modal - Before Mount')"
+        @vue:mounted="() => console.log('Auth Modal - Mounted')"
+        @vue:before-unmount="() => console.log('Auth Modal - Before Unmount')"
+        @vue:unmounted="() => console.log('Auth Modal - Unmounted')"
+      >
+        <div class="fixed inset-0 bg-black/50 backdrop-blur-sm"></div>
+        <div class="fixed inset-0 flex items-center justify-center p-4">
+          <Card variant="fun" class="w-full max-w-md mx-auto relative bg-white shadow-xl rounded-lg">
+            <AuthModal 
+              :is-open="true"
+              @success="handleAuthSuccess"
+              @close="handleAuthModalClose"
+              class="bg-white"
+            />
+          </Card>
+        </div>
+      </div>
+    </Transition>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, provide, watch } from 'vue';
+import { ref, onMounted, provide, watch, reactive, watchEffect } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import Header from './components/ui/Header.vue';
 import LoadingOverlay from './components/LoadingOverlay.vue';
@@ -41,7 +62,7 @@ const storyState = provideStoryState();
 
 const router = useRouter();
 const route = useRoute();
-const { user } = useSupabase();
+const { user, isLoading: authLoading } = useSupabase();
 
 const isLoading = ref(false);
 const currentStory = ref(null);
@@ -49,45 +70,135 @@ const errorMessage = ref(null);
 const showAuthModal = ref(false);
 const returnTo = ref('');
 
-// Debug logging for auth state changes
-watch(showAuthModal, (newVal, oldVal) => {
-  console.group('Auth Modal State Change');
-  console.log('showAuthModal changed:', { old: oldVal, new: newVal });
-  console.log('Current route:', route.fullPath);
-  console.log('Return to:', returnTo.value);
-  console.log('User state:', user.value ? 'authenticated' : 'unauthenticated');
-  console.groupEnd();
-});
-
-// Provide auth state to all components
+// Provide auth state to child components
 provide('authState', {
   showAuthModal,
   returnTo
 });
 
-// Watch for auth query parameter
-watch(() => route.query, (newQuery) => {
-  console.group('Auth Query Change');
-  console.log('New query params:', newQuery);
-  console.log('Current modal state:', showAuthModal.value);
-  console.log('Current user state:', user.value ? 'authenticated' : 'unauthenticated');
+// Add watch effect for route changes
+watch(
+  () => route.fullPath,
+  (newPath, oldPath) => {
+    console.group('Route Change Detection');
+    console.log('Route changed:', { from: oldPath, to: newPath });
+    console.log('Current query params:', route.query);
+    console.log('Auth state at route change:', {
+      user: !!user.value,
+      authLoading: authLoading.value,
+      showModal: showAuthModal.value,
+      returnTo: returnTo.value
+    });
+    console.groupEnd();
+  },
+  { immediate: true }
+);
+
+// Watch auth loading state
+watch(
+  authLoading,
+  (newVal, oldVal) => {
+    console.group('Auth Loading State Change');
+    console.log('Auth loading changed:', { from: oldVal, to: newVal });
+    console.log('Current route:', route.fullPath);
+    console.log('User state:', !!user.value);
+    console.log('Modal state:', showAuthModal.value);
+    console.groupEnd();
+
+    // If auth finished loading and we have auth required query param
+    if (!newVal && route.query.auth === 'required' && !user.value) {
+      console.log('Auth finished loading, showing modal for auth required');
+      showAuthModal.value = true;
+      returnTo.value = route.query.returnTo || '/create';
+    }
+  }
+);
+
+// Watch user state
+watch(
+  user,
+  (newUser, oldUser) => {
+    console.group('User State Change');
+    console.log('User changed:', { 
+      hadUser: !!oldUser, 
+      hasUser: !!newUser,
+      currentRoute: route.fullPath,
+      queryParams: route.query
+    });
+    console.groupEnd();
+  }
+);
+
+// Add route watcher to handle auth requirements
+watch(
+  () => route.query,
+  (newQuery) => {
+    console.group('Query Params Change');
+    console.log('New query params:', newQuery);
+    console.log('Auth state:', { user: !!user.value, loading: authLoading.value });
+    
+    if (newQuery.auth === 'required' && !user.value && !authLoading.value) {
+      console.log('Auth required by query params, showing modal');
+      showAuthModal.value = true;
+      returnTo.value = newQuery.returnTo || '/create';
+    }
+    console.groupEnd();
+  },
+  { immediate: true }
+);
+
+// Add reactive effect to log modal state changes
+watch(showAuthModal, (newVal, oldVal) => {
+  console.group('Auth Modal Visibility Change');
+  console.log('Modal visibility changed:', { from: oldVal, to: newVal });
   
-  if (newQuery.auth === 'required' && !user.value) {
-    showAuthModal.value = true;
-    returnTo.value = newQuery.returnTo || '/create';
-    console.log('Setting returnTo:', returnTo.value);
+  // Get modal element
+  const modalElement = document.querySelector('.fixed.inset-0.z-\\[100\\]');
+  console.log('Modal parent element exists:', !!modalElement);
+  console.log('Modal backdrop exists:', !!document.querySelector('.bg-black\\/50'));
+  
+  // Only try to get computed styles if elements exist
+  if (modalElement) {
+    console.log('Current z-index hierarchy:', {
+      modalZIndex: getComputedStyle(modalElement).zIndex,
+      otherHighZElements: Array.from(document.querySelectorAll('[class*="z-"]:not(.z-0)')).map(el => ({
+        element: el.tagName,
+        zIndex: getComputedStyle(el).zIndex
+      }))
+    });
   }
   console.groupEnd();
-}, { immediate: true });
+});
+
+// Update the watchEffect to use the correct refs
+watchEffect(() => {
+  console.group('Auth State Update');
+  console.log('Current auth state:', {
+    showModal: showAuthModal.value,
+    returnTo: returnTo.value,
+    modalMounted: !!document.querySelector('.fixed.inset-0.z-\\[100\\]')
+  });
+  console.groupEnd();
+});
 
 // Component setup
 onMounted(() => {
   console.group('App Mounted');
-  console.log('Initial route:', route.fullPath);
-  console.log('Query params:', route.query);
-  console.log('Initial auth state:', { showModal: showAuthModal.value, returnTo: returnTo.value });
-  console.log('User state:', user.value ? 'authenticated' : 'unauthenticated');
-  console.groupEnd();
+  console.log('Initial mount state:', {
+    route: route.fullPath,
+    query: route.query,
+    authLoading: authLoading.value,
+    user: !!user.value,
+    showModal: showAuthModal.value,
+    returnTo: returnTo.value
+  });
+
+  // Only show auth modal if auth is required, user is not authenticated, and auth is not loading
+  if (route.query.auth === 'required' && !user.value && !authLoading.value) {
+    console.log('Showing auth modal on mount');
+    showAuthModal.value = true;
+    returnTo.value = route.query.returnTo || '/create';
+  }
 
   // Load existing story if available
   const savedStory = localStorage.getItem('currentStory');
@@ -97,6 +208,7 @@ onMounted(() => {
     currentStory.value = parsedStory;
     storyState.setStoryState(parsedStory);
   }
+  console.groupEnd();
 });
 
 const handleAuthSuccess = async (authenticatedUser) => {

@@ -19,7 +19,8 @@ const router = createRouter({
     {
       path: '/create',
       name: 'create',
-      component: StoryForm
+      component: StoryForm,
+      meta: { requiresAuth: true }
     },
     {
       path: '/custom-story/create',
@@ -80,17 +81,22 @@ router.beforeEach(async (to, from) => {
       console.groupEnd();
       
       // Prevent redirect loop by checking if we're already handling auth
-      if (from.query.auth === 'required') {
+      if (from.query.auth === 'required' || to.query.auth === 'required') {
+        console.log('Preventing redirect loop - already handling auth');
         return false;
       }
       
-      return {
-        name: 'landing',
-        query: { 
-          auth: 'required',
-          returnTo: to.fullPath
-        }
-      };
+      // Only redirect if we're not already on the landing page
+      if (to.name !== 'landing') {
+        return {
+          name: 'landing',
+          query: { 
+            auth: 'required',
+            returnTo: to.fullPath
+          },
+          replace: true // Use replace instead of push to avoid browser history issues
+        };
+      }
     }
     console.log('User authenticated, allowing navigation');
   } else {
