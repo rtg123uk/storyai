@@ -27,7 +27,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, provide } from 'vue';
+import { ref, onMounted, provide, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import Header from './components/ui/Header.vue';
 import LoadingOverlay from './components/LoadingOverlay.vue';
@@ -49,6 +49,16 @@ const errorMessage = ref(null);
 const showAuthModal = ref(false);
 const returnTo = ref('');
 
+// Debug logging for auth state changes
+watch(showAuthModal, (newVal, oldVal) => {
+  console.group('Auth Modal State Change');
+  console.log('showAuthModal changed:', { old: oldVal, new: newVal });
+  console.log('Current route:', route.fullPath);
+  console.log('Return to:', returnTo.value);
+  console.log('User state:', user.value ? 'authenticated' : 'unauthenticated');
+  console.groupEnd();
+});
+
 // Provide auth state to all components
 provide('authState', {
   showAuthModal,
@@ -56,25 +66,76 @@ provide('authState', {
 });
 
 // Watch for auth query parameter
-onMounted(() => {
-  if (route.query.auth === 'required') {
+watch(() => route.query, (newQuery) => {
+  console.group('Auth Query Change');
+  console.log('New query params:', newQuery);
+  console.log('Current modal state:', showAuthModal.value);
+  console.log('Current user state:', user.value ? 'authenticated' : 'unauthenticated');
+  
+  if (newQuery.auth === 'required' && !user.value) {
     showAuthModal.value = true;
-    returnTo.value = route.query.returnTo || '/create';
+    returnTo.value = newQuery.returnTo || '/create';
+    console.log('Setting returnTo:', returnTo.value);
+  }
+  console.groupEnd();
+}, { immediate: true });
+
+// Component setup
+onMounted(() => {
+  console.group('App Mounted');
+  console.log('Initial route:', route.fullPath);
+  console.log('Query params:', route.query);
+  console.log('Initial auth state:', { showModal: showAuthModal.value, returnTo: returnTo.value });
+  console.log('User state:', user.value ? 'authenticated' : 'unauthenticated');
+  console.groupEnd();
+
+  // Load existing story if available
+  const savedStory = localStorage.getItem('currentStory');
+  const currentRoute = router.currentRoute.value.name;
+  if (savedStory && currentRoute !== 'landing') {
+    const parsedStory = JSON.parse(savedStory);
+    currentStory.value = parsedStory;
+    storyState.setStoryState(parsedStory);
   }
 });
 
 const handleAuthSuccess = async (authenticatedUser) => {
+  console.group('Auth Success Handler');
   console.log('Auth success, redirecting to:', returnTo.value);
+  console.log('Current route:', route.fullPath);
+  console.log('Modal state before close:', showAuthModal.value);
   showAuthModal.value = false;
-  await router.push(returnTo.value || '/create');
+  
+  // Clear auth query params first
+  if (route.query.auth) {
+    await router.replace({ path: route.path });
+  }
+  
+  // Then navigate to return path
+  try {
+    await router.push(returnTo.value || '/create');
+    console.log('Navigation completed successfully');
+    returnTo.value = ''; // Clear returnTo after successful navigation
+  } catch (error) {
+    console.error('Navigation failed:', error);
+  }
+  console.groupEnd();
 };
 
 const handleAuthModalClose = () => {
+  console.group('Auth Modal Close Handler');
+  console.log('Modal closing, current state:', showAuthModal.value);
+  console.log('Current route:', route.fullPath);
+  console.log('Query params:', route.query);
   showAuthModal.value = false;
+  returnTo.value = ''; // Clear returnTo on modal close
+  
   // If we came from another page, clear the query params
   if (route.query.auth) {
-    router.replace({ query: {} });
+    console.log('Clearing auth query params');
+    router.replace({ path: route.path });
   }
+  console.groupEnd();
 };
 
 const handleRestart = () => {
@@ -165,17 +226,6 @@ const handleStartStory = async (storyData) => {
     isLoading.value = false;
   }
 };
-
-// Load existing story on mount
-onMounted(() => {
-  const savedStory = localStorage.getItem('currentStory');
-  const currentRoute = router.currentRoute.value.name;
-  if (savedStory && currentRoute !== 'landing') {
-    const parsedStory = JSON.parse(savedStory);
-    currentStory.value = parsedStory;
-    storyState.setStoryState(parsedStory);
-  }
-});
 </script>
 
 <style>

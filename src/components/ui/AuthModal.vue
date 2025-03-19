@@ -1,73 +1,66 @@
 <template>
-  <div v-if="isOpen" class="fixed inset-0 z-50 overflow-y-auto">
-    <!-- Backdrop -->
-    <div class="fixed inset-0 bg-black/50 backdrop-blur-sm" @click="close"></div>
+  <div class="w-full">
+    <!-- Form -->
+    <div class="p-6">
+      <!-- Header -->
+      <div class="text-center mb-6">
+        <h2 class="text-2xl font-bold text-indigo-900">{{ isLogin ? 'Welcome Back!' : 'Start Your Adventure' }}</h2>
+        <p class="text-indigo-600 mt-2">
+          {{ isLogin ? 'Sign in to continue your magical journey' : 'Create an account to begin crafting magical stories' }}
+        </p>
+        <p class="text-sm text-indigo-500/75 mt-2">
+          {{ isLogin ? 'Access all your saved stories' : 'Save your stories and create unlimited adventures' }}
+        </p>
+      </div>
 
-    <!-- Modal -->
-    <div class="relative min-h-screen flex items-center justify-center p-4">
-      <Card variant="fun" class="w-full max-w-md mx-auto relative z-10">
-        <div class="p-6">
-          <!-- Header -->
-          <div class="text-center mb-6">
-            <h2 class="text-2xl font-bold text-indigo-900">{{ isLogin ? 'Welcome Back!' : 'Start Your Adventure' }}</h2>
-            <p class="text-indigo-600 mt-2">
-              {{ isLogin ? 'Sign in to continue your magical journey' : 'Create an account to begin crafting magical stories' }}
-            </p>
-            <p class="text-sm text-indigo-500/75 mt-2">
-              {{ isLogin ? 'Access all your saved stories' : 'Save your stories and create unlimited adventures' }}
-            </p>
-          </div>
+      <!-- Error Message -->
+      <div v-if="error" class="mb-6 p-3 bg-red-50 text-red-600 rounded-lg text-sm">
+        {{ error }}
+      </div>
 
-          <!-- Error Message -->
-          <div v-if="error" class="mb-6 p-3 bg-red-50 text-red-600 rounded-lg text-sm">
-            {{ error }}
-          </div>
-
-          <!-- Form -->
-          <form @submit.prevent="handleSubmit" class="space-y-4">
-            <div>
-              <label class="block text-sm font-medium text-indigo-900 mb-1">Email</label>
-              <Input
-                v-model="email"
-                type="email"
-                required
-                placeholder="your@email.com"
-                variant="fun"
-              />
-            </div>
-
-            <div>
-              <label class="block text-sm font-medium text-indigo-900 mb-1">Password</label>
-              <Input
-                v-model="password"
-                type="password"
-                required
-                placeholder="••••••••"
-                variant="fun"
-              />
-            </div>
-
-            <Button
-              type="submit"
-              variant="fun"
-              class="w-full"
-              :disabled="isLoading"
-            >
-              {{ isLogin ? 'Continue Story' : 'Start Creating' }}
-            </Button>
-          </form>
-
-          <!-- Toggle Login/Signup -->
-          <div class="mt-6 text-center">
-            <button
-              @click="isLogin = !isLogin"
-              class="text-indigo-600 hover:text-indigo-700 text-sm"
-            >
-              {{ isLogin ? 'New to magical stories? Create account' : 'Already have magical stories? Sign in' }}
-            </button>
-          </div>
+      <!-- Form -->
+      <form @submit.prevent="handleSubmit" class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-indigo-900 mb-1">Email</label>
+          <Input
+            v-model="email"
+            type="email"
+            required
+            placeholder="your@email.com"
+            variant="fun"
+          />
         </div>
-      </Card>
+
+        <div>
+          <label class="block text-sm font-medium text-indigo-900 mb-1">Password</label>
+          <Input
+            v-model="password"
+            type="password"
+            required
+            placeholder="••••••••"
+            variant="fun"
+          />
+        </div>
+
+        <Button
+          type="submit"
+          variant="fun"
+          class="w-full"
+          :disabled="isLoading"
+        >
+          {{ isLogin ? 'Continue Story' : 'Start Creating' }}
+        </Button>
+      </form>
+
+      <!-- Toggle Login/Signup -->
+      <div class="mt-6 text-center">
+        <button
+          @click="isLogin = !isLogin"
+          class="text-indigo-600 hover:text-indigo-700 text-sm"
+        >
+          {{ isLogin ? 'New to magical stories? Create account' : 'Already have magical stories? Sign in' }}
+        </button>
+      </div>
     </div>
   </div>
 </template>

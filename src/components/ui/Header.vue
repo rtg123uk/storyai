@@ -149,23 +149,15 @@
         </div>
       </div>
     </transition>
-
-    <!-- Auth Modal -->
-    <AuthModal 
-      :is-open="showAuthModal" 
-      @close="showAuthModal = false"
-      @auth-success="handleAuthSuccess"
-    />
   </header>
 </template>
 
 <script setup>
-import { ref, computed, inject } from 'vue';
+import { ref, computed, inject, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useSupabase } from '../../composables/useSupabase';
 import Icons from './Icons.vue';
 import Button from './Button.vue';
-import AuthModal from './AuthModal.vue';
 
 const router = useRouter();
 const { user, signOut } = useSupabase();
@@ -175,30 +167,39 @@ const isLoading = ref(false);
 // Inject auth state
 const { showAuthModal, returnTo } = inject('authState');
 
-const navigationItems = computed(() => [
-  { name: 'Create Story', path: '/create', icon: 'book' },
-  ...(user.value ? [{ name: 'My Stories', path: '/profile', icon: 'users' }] : [])
-]);
+const navigationItems = computed(() => {
+  const items = [
+    { name: 'Create Story', path: '/create', icon: 'book' },
+    ...(user.value ? [{ name: 'My Stories', path: '/profile', icon: 'users' }] : [])
+  ];
+  console.log('Navigation items updated:', items);
+  return items;
+});
 
 const handleSignOut = async () => {
+  console.group('Header - Sign Out');
   try {
     isLoading.value = true;
+    console.log('Starting sign out process');
     await signOut();
-    router.push('/');
+    console.log('Sign out successful, navigating to landing');
+    await router.push('/');
   } catch (error) {
     console.error('Error signing out:', error);
   } finally {
     isLoading.value = false;
+    console.log('Sign out process completed');
   }
-};
-
-const handleAuthSuccess = () => {
-  showAuthModal.value = false;
-  // Optionally refresh the page or update the UI
+  console.groupEnd();
 };
 
 const handleSignIn = () => {
+  console.group('Header - Sign In');
+  console.log('Opening auth modal');
+  console.log('Current route:', router.currentRoute.value.fullPath);
   showAuthModal.value = true;
   returnTo.value = router.currentRoute.value.fullPath;
+  console.log('Auth state set:', { showModal: showAuthModal.value, returnTo: returnTo.value });
+  console.groupEnd();
 };
 </script> 

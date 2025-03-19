@@ -1,10 +1,21 @@
 <template>
-  <div class="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 py-12 px-4 sm:px-6 lg:px-8">
+  <div class="min-h-screen bg-white py-12 px-4 sm:px-6 lg:px-8">
     <Card variant="fun" class="max-w-4xl mx-auto">
       <div class="p-8">
-        <h1 class="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-violet-600 mb-8">
-          Your Story Collection ✨
-        </h1>
+        <div class="flex items-center justify-between mb-8">
+          <div>
+            <h1 class="text-4xl font-bold text-indigo-900">
+              Your Story Collection
+              <span class="inline-block ml-2">✨</span>
+            </h1>
+            <p class="text-indigo-600 mt-2">
+              Joined {{ formatDate(user?.created_at) }}
+            </p>
+          </div>
+          <Button @click="router.push('/create')" variant="fun" size="lg">
+            Create New Story
+          </Button>
+        </div>
 
         <div v-if="isLoading" class="text-center py-12">
           <Progress variant="fun" :value="50" class="max-w-md mx-auto mb-4" />
@@ -13,7 +24,7 @@
 
         <div v-else-if="stories.length === 0" class="text-center py-12">
           <p class="text-xl text-indigo-600 mb-6">You haven't saved any stories yet!</p>
-          <Button @click="router.push('/')" variant="fun" size="lg">
+          <Button @click="router.push('/create')" variant="fun" size="lg">
             Create Your First Story
           </Button>
         </div>
@@ -45,12 +56,6 @@
             </div>
           </Card>
         </div>
-
-        <div class="mt-8 flex justify-center">
-          <Button @click="router.push('/')" variant="outline" size="lg">
-            Create New Story
-          </Button>
-        </div>
       </div>
     </Card>
   </div>
@@ -67,7 +72,7 @@ import Progress from '../components/ui/Progress.vue';
 
 const router = useRouter();
 const route = useRoute();
-const { supabase } = useSupabase();
+const { supabase, user } = useSupabase();
 const stories = ref([]);
 const isLoading = ref(true);
 

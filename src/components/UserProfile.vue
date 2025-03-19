@@ -1,10 +1,10 @@
 <template>
-  <div class="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-violet-50 p-6 sm:p-8 md:p-12">
+  <div class="min-h-screen bg-white p-6 sm:p-8 md:p-12">
     <div class="max-w-4xl mx-auto space-y-8">
       <!-- User Profile Header -->
-      <div class="bg-white/90 backdrop-blur-sm rounded-3xl shadow-xl border border-indigo-100/50 p-8">
+      <div class="bg-white rounded-3xl shadow-xl border border-indigo-100/50 p-8">
         <div class="flex items-start gap-6">
-          <div class="w-20 h-20 rounded-2xl bg-gradient-to-br from-indigo-400 to-violet-400 flex items-center justify-center text-white text-3xl font-bold">
+          <div class="w-20 h-20 rounded-2xl bg-indigo-500 flex items-center justify-center text-white text-3xl font-bold">
             {{ username.charAt(0).toUpperCase() }}
           </div>
           <div class="flex-grow">
@@ -15,8 +15,8 @@
             </div>
           </div>
           <button
-            @click="startNewStory"
-            class="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-500 to-violet-500 text-white rounded-xl hover:from-indigo-600 hover:to-violet-600 transition-all shadow-sm hover:shadow-md"
+            @click="router.push('/create')"
+            class="flex items-center gap-2 px-6 py-3 bg-indigo-500 text-white rounded-xl hover:bg-indigo-600 transition-all shadow-sm hover:shadow-md"
           >
             Create New Story
           </button>
@@ -24,7 +24,7 @@
       </div>
 
       <!-- Stories Section -->
-      <div class="bg-white/90 backdrop-blur-sm rounded-3xl shadow-xl border border-indigo-100/50 p-8">
+      <div class="bg-white rounded-3xl shadow-xl border border-indigo-100/50 p-8">
         <h2 class="text-2xl font-bold text-indigo-900 mb-6">Your Story Collection</h2>
 
         <div class="space-y-6">
@@ -53,8 +53,8 @@
           <h3 class="text-xl font-medium text-indigo-900 mb-2">No Stories Yet</h3>
           <p class="text-indigo-600 mb-6">Start your first adventure to see it here!</p>
           <button
-            @click="startNewStory"
-            class="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-500 to-violet-500 text-white rounded-xl hover:from-indigo-600 hover:to-violet-600 transition-all shadow-sm hover:shadow-md"
+            @click="router.push('/create')"
+            class="inline-flex items-center gap-2 px-6 py-3 bg-indigo-500 text-white rounded-xl hover:bg-indigo-600 transition-all shadow-sm hover:shadow-md"
           >
             Create Your First Story
           </button>
@@ -178,10 +178,6 @@ const readStory = (story) => {
   }
 };
 
-const startNewStory = () => {
-  router.push('/');
-};
-
 const loadSavedStories = async () => {
   isLoading.value = true;
   error.value = null;
@@ -189,6 +185,20 @@ const loadSavedStories = async () => {
   try {
     console.group('Story Loading - Choice Data Debug');
     console.log('Fetching stories with choice data...');
+    
+    const { data: userData } = await supabase.auth.getUser();
+    if (userData?.user) {
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('username, created_at')
+        .eq('id', userData.user.id)
+        .single();
+
+      if (profileData) {
+        username.value = profileData.username;
+        signUpDate.value = profileData.created_at;
+      }
+    }
     
     const { data, error: fetchError } = await supabase
       .from('stories')

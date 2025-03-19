@@ -9,35 +9,71 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey);
 // Create singletons for auth state
 const user = ref(null);
 const error = ref(null);
-const isLoading = ref(false);
+const isLoading = ref(true);
 let authStateListener = null;
 
 // Initialize user session
 const initUser = async () => {
+  console.group('Supabase Auth - initUser');
+  console.log('Starting auth initialization');
   try {
     const { data: { session } } = await supabase.auth.getSession();
+    console.log('Retrieved session:', {
+      hasSession: !!session,
+      hasUser: !!session?.user,
+      userId: session?.user?.id,
+      userEmail: session?.user?.email
+    });
+    
     if (session?.user) {
-      console.log('User authenticated from session:', session.user);
+      console.log('Setting user from session');
       user.value = session.user;
     } else {
-      console.log('No authenticated user session');
+      console.log('No authenticated user session found');
+      user.value = null;
     }
   } catch (e) {
     console.error('Error initializing user:', e);
     error.value = e.message;
+  } finally {
+    isLoading.value = false;
+    console.log('Auth initialization complete. State:', {
+      isAuthenticated: !!user.value,
+      isLoading: isLoading.value,
+      hasError: !!error.value
+    });
   }
+  console.groupEnd();
 };
 
 // Initialize auth state listener
 const initAuthListener = () => {
+  console.group('Supabase Auth - initAuthListener');
+  console.log('Setting up auth state listener');
+  
   if (!authStateListener) {
     authStateListener = supabase.auth.onAuthStateChange((event, session) => {
-      if (import.meta.env.DEV) {
-        console.log('Auth state changed:', { event, user: session?.user });
-      }
+      console.group('Auth State Change Event');
+      console.log('Event type:', event);
+      console.log('Session state:', {
+        hasSession: !!session,
+        hasUser: !!session?.user,
+        userId: session?.user?.id,
+        userEmail: session?.user?.email
+      });
+      
       user.value = session?.user || null;
+      console.log('Updated user state:', {
+        isAuthenticated: !!user.value,
+        userEmail: user.value?.email
+      });
+      console.groupEnd();
     });
+    console.log('Auth listener initialized');
+  } else {
+    console.log('Auth listener already exists');
   }
+  console.groupEnd();
 };
 
 // Initialize auth state

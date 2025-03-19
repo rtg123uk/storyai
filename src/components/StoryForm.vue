@@ -251,11 +251,30 @@
         </Card>
       </div>
     </div>
+
+    <!-- Auth Modal -->
+    <Transition name="fade">
+      <div v-if="showAuthModal" class="fixed inset-0 z-[100] overflow-y-auto">
+        <!-- Overlay -->
+        <div class="fixed inset-0 bg-black/50 backdrop-blur-sm" @click="handleAuthModalClose"></div>
+        
+        <!-- Modal Container -->
+        <div class="fixed inset-0 flex items-center justify-center p-4">
+          <Card variant="fun" class="w-full max-w-md mx-auto relative">
+            <AuthModal 
+              :is-open="true"
+              @success="handleAuthSuccess" 
+              @close="handleAuthModalClose"
+            />
+          </Card>
+        </div>
+      </div>
+    </Transition>
   </div>
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, inject, onMounted, watch } from 'vue';
 import Button from './ui/Button.vue';
 import Input from './ui/Input.vue';
 import Card from './ui/Card.vue';
@@ -263,10 +282,14 @@ import Progress from './ui/Progress.vue';
 import { useRouter } from 'vue-router';
 import Icons from './ui/Icons.vue';
 import { useStoryState } from '../composables/useStoryState';
+import { useSupabase } from '../composables/useSupabase';
+import AuthModal from './ui/AuthModal.vue';
 
 const emit = defineEmits(['start-story']);
 const router = useRouter();
 const { setStoryState } = useStoryState();
+const { user, isLoading: isAuthLoading } = useSupabase();
+const { showAuthModal, returnTo } = inject('authState');
 
 const themes = [
   { value: 'fantasy', label: 'Fantasy', icon: 'castle' },
@@ -345,7 +368,19 @@ const getThemeDescription = (themeValue) => {
 };
 
 const startStory = async () => {
+  console.group('Story Form - Start Story');
+  console.log('Form validation state:', isFormValid.value);
+  console.log('User state:', user.value ? 'authenticated' : 'unauthenticated');
+  
   if (!isFormValid.value) return;
+
+  // Check if user is authenticated
+  if (!user.value) {
+    console.log('User not authenticated, showing auth modal');
+    showAuthModal.value = true;
+    console.groupEnd();
+    return;
+  }
 
   const storyData = {
     childName: formData.value.useCustomName ? formData.value.customName : formData.value.childName,
@@ -360,9 +395,97 @@ const startStory = async () => {
     }
   };
 
-  console.log('Emitting story data with friends:', storyData);
+  console.log('Emitting story data:', storyData);
   emit('start-story', storyData);
+  console.groupEnd();
 };
+
+const handleAuthSuccess = () => {
+  console.group('Story Form - Auth Success');
+  console.log('Auth successful, hiding modal');
+  showAuthModal.value = false;
+  console.groupEnd();
+};
+
+const handleAuthModalClose = () => {
+  console.group('Story Form - Auth Modal Close');
+  console.log('Modal closed by user');
+  showAuthModal.value = false;
+  returnTo.value = '';
+  console.groupEnd();
+};
+
+// Add logging for initial state
+console.group('StoryForm - Component Setup');
+console.log('Initial auth state:', {
+  user: !!user.value,
+  isLoading: isAuthLoading.value
+});
+console.groupEnd();
+
+// Check auth state on mount
+onMounted(async () => {
+  console.group('StoryForm - Mounted');
+  console.log('Initial mount state:', {
+    hasUser: !!user.value,
+    isLoading: isAuthLoading.value,
+    showingModal: showAuthModal.value
+  });
+  
+  // Wait for auth state to be loaded
+  if (isAuthLoading.value) {
+    console.log('Auth state is still loading, waiting...');
+    await new Promise(resolve => {
+      const unwatch = watch(isAuthLoading, (newValue, oldValue) => {
+        console.log('Auth loading state changed:', { 
+          from: oldValue, 
+          to: newValue,
+          hasUser: !!user.value 
+        });
+        if (!newValue) {
+          unwatch();
+          resolve();
+        }
+      });
+    });
+  }
+  
+  console.log('Auth state check complete:', {
+    hasUser: !!user.value,
+    userEmail: user.value?.email,
+    isLoading: isAuthLoading.value,
+    showingModal: showAuthModal.value
+  });
+  
+  // Reset modal state if user is authenticated
+  if (user.value) {
+    console.log('User is authenticated, ensuring modal is hidden');
+    showAuthModal.value = false;
+  } else {
+    console.log('No user found after auth check, showing modal');
+    showAuthModal.value = true;
+    returnTo.value = '/create';
+  }
+  console.groupEnd();
+});
+
+// Watch for auth state changes with immediate effect
+watch([user, isAuthLoading], ([newUser, newLoading], [oldUser, oldLoading]) => {
+  console.group('StoryForm - Auth State Change');
+  console.log('Auth state updated:', {
+    userChanged: !!oldUser !== !!newUser,
+    loadingChanged: oldLoading !== newLoading,
+    hasUser: !!newUser,
+    isLoading: newLoading,
+    showingModal: showAuthModal.value
+  });
+  
+  if (newUser) {
+    console.log('User is authenticated, ensuring modal is hidden');
+    showAuthModal.value = false;
+  }
+  console.groupEnd();
+}, { immediate: true });
 </script>
 
 <style scoped>
@@ -436,5 +559,22 @@ const startStory = async () => {
 .slide-fade-leave-to {
   opacity: 0;
   transform: translateX(-30px);
+}
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: all 0.3s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+  transform: scale(0.95);
+}
+
+.fade-enter-to,
+.fade-leave-from {
+  opacity: 1;
+  transform: scale(1);
 }
 </style> 
