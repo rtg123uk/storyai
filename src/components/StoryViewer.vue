@@ -26,42 +26,11 @@
 
     <!-- Story Navigation -->
     <div class="fixed bottom-0 left-0 right-0 bg-white bg-opacity-90 backdrop-blur-sm border-t border-indigo-100 p-4">
-      <div class="max-w-4xl mx-auto flex items-center justify-between gap-4">
-        <!-- Navigation Buttons -->
-        <Button 
-          @click="handlePreviousPage" 
-          :disabled="currentPageIndex === 1"
-          variant="secondary"
-          size="lg"
-        >
-          <span class="flex items-center gap-2">
-            <Icons name="book" class="rotate-180" />
-            Previous Page
-          </span>
-        </Button>
-
-        <!-- Page Counter -->
+      <!-- Page Counter -->
+      <div class="text-center">
         <span class="text-lg font-medium text-indigo-800">
           Page {{ currentPageIndex }} of {{ parsedMaxPages }}
         </span>
-
-        <!-- Next/Finish Button -->
-        <Button 
-          @click="handleChoice" 
-          :variant="currentPageIndex === parsedMaxPages ? 'fun' : 'secondary'"
-          size="lg"
-        >
-          <span class="flex items-center gap-2">
-            <template v-if="currentPageIndex === parsedMaxPages">
-              <span>Finish Story</span>
-              <Icons name="magic-wand" />
-            </template>
-            <template v-else>
-              <span>Next Page</span>
-              <Icons name="book" />
-            </template>
-          </span>
-        </Button>
       </div>
     </div>
 
@@ -77,6 +46,7 @@
 
     <!-- Auth Modal -->
     <AuthModal
+      v-if="showAuthModal"
       :is-open="showAuthModal"
       @close="showAuthModal = false"
       @auth-success="handleAuthSuccess"
@@ -227,35 +197,67 @@ const handleNextPage = () => {
   }
 };
 
-const handleSaveStory = async () => {
-  if (!user.value) {
-    showAuthModal.value = true;
-    return;
+const handleSaveStory = async (storyData) => {
+  console.group('StoryViewer - Save Story');
+  isSaving.value = true;
+  saveError.value = '';
+  saveSuccess.value = false;
+
+  try {
+    if (!storyData) {
+      throw new Error('No story data provided');
+    }
+
+    console.log('Preparing to save story:', {
+      title: storyData.title,
+      pagesCount: storyData.pages?.length || 0,
+      metadata: storyData.metadata,
+      firstPage: storyData.pages?.[0] ? {
+        title: storyData.pages[0].title,
+        hasContent: Boolean(storyData.pages[0].content)
+      } : null
+    });
+
+    if (!storyData.pages?.length) {
+      throw new Error('Story must have at least one page');
+    }
+
+    const result = await saveStory(storyData);
+    
+    if (result.error) {
+      throw new Error(result.error);
+    }
+    
+    console.log('Story saved successfully:', result);
+    
+    // Clear backup from localStorage
+    localStorage.removeItem('currentStory');
+    
+    saveSuccess.value = true;
+    
+    // Hide success message and redirect after a delay
+    setTimeout(() => {
+      saveSuccess.value = false;
+      router.push('/profile');
+    }, 2000);
+  } catch (error) {
+    console.error('Error from saveStory:', error);
+    saveError.value = error.message || 'Failed to save story. Please try again.';
+  } finally {
+    isSaving.value = false;
+    console.groupEnd();
   }
-  
-  await saveStoryToDatabase();
 };
 
 const handleAuthSuccess = async (authenticatedUser) => {
+  console.group('StoryViewer - Auth Success Handler');
+  console.log('Auth success handler called with user:', authenticatedUser);
   showAuthModal.value = false;
-  if (authenticatedUser) {
-    // Small delay to ensure auth state is updated
-    setTimeout(async () => {
-      await saveStoryToDatabase();
-    }, 500);
-  }
-};
 
-const saveStoryToDatabase = async () => {
+  // Small delay to ensure auth state is updated
+  await new Promise(resolve => setTimeout(resolve, 1000));
+
   try {
-    isSaving.value = true;
-    saveError.value = null;
-    saveSuccess.value = false;
-
-    if (!user.value) {
-      throw new Error('Please sign in to save your story');
-    }
-
     const storyData = {
       title: props.story.title,
       pages: props.story.pages,
@@ -265,7 +267,7 @@ const saveStoryToDatabase = async () => {
       }
     };
 
-    console.log('Attempting to save story with data:', storyData);
+    console.log('Attempting to save story after auth:', storyData);
     
     const { data, error } = await saveStory(storyData);
     
@@ -275,18 +277,20 @@ const saveStoryToDatabase = async () => {
       return;
     }
 
-    console.log('Story saved successfully:', data);
+    console.log('Story saved successfully after auth:', data);
     saveSuccess.value = true;
+    localStorage.removeItem('currentStory');
     
-    // Hide success message after 3 seconds
+    // Hide success message and redirect to profile
     setTimeout(() => {
       saveSuccess.value = false;
-    }, 3000);
+      router.push({ name: 'profile' });
+    }, 2000);
   } catch (e) {
-    console.error('Error in saveStoryToDatabase:', e);
-    saveError.value = e.message;
+    console.error('Error saving story after auth:', e);
+    saveError.value = e.message || 'Failed to save story';
   } finally {
-    isSaving.value = false;
+    console.groupEnd();
   }
 };
 

@@ -122,6 +122,7 @@ const loadStory = async () => {
   error.value = null;
   
   try {
+    console.group('Story Reader - Loading Story');
     // Always set reading mode to true for StoryReader component
     isReadingMode.value = true;
     
@@ -139,7 +140,18 @@ const loadStory = async () => {
       try {
         const parsedStory = JSON.parse(storedStory);
         if (parsedStory.id === storyId) {
-          console.log('Loading story from localStorage:', parsedStory);
+          console.log('Loading story from localStorage:', {
+            id: parsedStory.id,
+            title: parsedStory.title,
+            pagesCount: parsedStory.pages.length,
+            pages: parsedStory.pages.map(p => ({
+              pageNumber: p.pageNumber,
+              choiceMade: p.choiceMade,
+              previousChoice: p.previous_choice,
+              selectedChoice: p.selected_choice,
+              rawChoices: p.choices
+            }))
+          });
           story.value = parsedStory;
           return;
         }
@@ -179,20 +191,42 @@ const loadStory = async () => {
       throw new Error('Story not found');
     }
 
-    console.log('Loaded story from database:', dbStory);
-    console.log('Voice metadata:', {
-      useVoice: dbStory.metadata?.useVoice,
-      selectedVoiceId: dbStory.metadata?.selectedVoiceId
+    console.log('Raw database story:', {
+      id: dbStory.id,
+      title: dbStory.title,
+      pagesCount: dbStory.pages.length,
+      pages: dbStory.pages.map(p => ({
+        pageNumber: p.page_number,
+        previousChoice: p.previous_choice,
+        rawChoices: p.choices
+      }))
     });
 
     // Process the story data
     story.value = {
       ...dbStory,
-      pages: dbStory.pages.map(page => ({
-        ...page,
-        pageNumber: page.page_number,
-        choiceMade: page.previous_choice
-      })),
+      pages: dbStory.pages.map((page, index) => {
+        const nextPage = dbStory.pages[index + 1];
+        const choiceMade = nextPage?.previous_choice;
+        
+        const processedPage = {
+          ...page,
+          pageNumber: page.page_number,
+          content: page.content || '',
+          title: page.title || `Page ${index + 1}`,
+          choiceMade: index < dbStory.pages.length - 1 ? choiceMade : null
+        };
+        
+        console.log(`Processed page ${index + 1}:`, {
+          pageNumber: processedPage.pageNumber,
+          previousChoice: page.previous_choice,
+          choiceMade: processedPage.choiceMade,
+          nextPagePreviousChoice: nextPage?.previous_choice,
+          rawChoices: page.choices
+        });
+        
+        return processedPage;
+      }),
       metadata: {
         ...dbStory.metadata,
         useVoice: dbStory.metadata?.useVoice || false,
@@ -200,10 +234,16 @@ const loadStory = async () => {
       }
     };
 
-    console.log('Processed story:', {
-      useVoice: story.value.metadata?.useVoice,
-      selectedVoiceId: story.value.metadata?.selectedVoiceId,
-      currentPageContent: story.value.pages[currentPageIndex.value]?.content
+    console.log('Final processed story:', {
+      id: story.value.id,
+      title: story.value.title,
+      pagesCount: story.value.pages.length,
+      pages: story.value.pages.map(p => ({
+        pageNumber: p.pageNumber,
+        choiceMade: p.choiceMade,
+        previousChoice: p.previous_choice,
+        rawChoices: p.choices
+      }))
     });
 
     // Update localStorage with the latest data
@@ -216,6 +256,7 @@ const loadStory = async () => {
     router.push('/profile');
   } finally {
     isLoading.value = false;
+    console.groupEnd();
   }
 };
 

@@ -31,12 +31,6 @@
                       <span class="text-2xl group-hover:rotate-12 transition-transform">✨</span>
                     </span>
                   </Button>
-                  <Button @click="watchDemo" variant="outline" size="xl" class="group">
-                    <span class="flex items-center gap-2">
-                      Watch Demo
-                      <span class="text-2xl group-hover:scale-110 transition-transform">🎥</span>
-                    </span>
-                  </Button>
                 </div>
               </div>
               <div class="col-span-6 mt-12 lg:mt-0">
@@ -205,24 +199,47 @@
           <p class="text-xl text-white/90 mb-12 max-w-2xl mx-auto">
             Join thousands of families creating magical memories with personalized stories.
           </p>
-          <Button @click="startAdventure" variant="fun" size="xl" class="bg-white text-teal-600 hover:bg-teal-50 group">
+          <Button @click="startAdventure" variant="fun" size="xl" class="group">
             <span class="flex items-center gap-2">
-              Create Your First Story
+              Start Creating
               <span class="text-2xl group-hover:rotate-12 transition-transform">✨</span>
             </span>
           </Button>
         </div>
       </div>
+
+      <!-- Auth Modal -->
+      <AuthModal 
+        :is-open="showAuthModal"
+        @close="handleAuthModalClose"
+        @auth-success="handleAuthSuccess"
+      />
     </div>
   </template>
   
   <script setup>
-  import { useRouter } from 'vue-router';
+  import { ref, onMounted } from 'vue';
+  import { useRouter, useRoute } from 'vue-router';
+  import { useSupabase } from '../composables/useSupabase';
   import Button from '../components/ui/Button.vue';
   import Card from '../components/ui/Card.vue';
   import Icons from '../components/ui/Icons.vue';
+  import AuthModal from '../components/ui/AuthModal.vue';
   
   const router = useRouter();
+  const route = useRoute();
+  const { user } = useSupabase();
+  
+  const showAuthModal = ref(false);
+  const returnTo = ref('');
+  
+  // Watch for auth query parameter
+  onMounted(() => {
+    if (route.query.auth === 'required') {
+      showAuthModal.value = true;
+      returnTo.value = route.query.returnTo || '/create';
+    }
+  });
   
   const features = [
     {
@@ -313,12 +330,26 @@
   ];
   
   const startAdventure = () => {
-    router.push({ name: 'create' });
+    if (!user.value) {
+      showAuthModal.value = true;
+      returnTo.value = '/create';
+    } else {
+      router.push('/create');
+    }
   };
   
-  const watchDemo = () => {
-    // Implement demo video modal
-    console.log('Show demo video');
+  const handleAuthSuccess = async (authenticatedUser) => {
+    console.log('Auth success, redirecting to:', returnTo.value);
+    showAuthModal.value = false;
+    await router.push(returnTo.value || '/create');
+  };
+  
+  const handleAuthModalClose = () => {
+    showAuthModal.value = false;
+    // If we came from another page, clear the query params
+    if (route.query.auth) {
+      router.replace({ query: {} });
+    }
   };
   </script>
   

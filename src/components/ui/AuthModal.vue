@@ -9,8 +9,13 @@
         <div class="p-6">
           <!-- Header -->
           <div class="text-center mb-6">
-            <h2 class="text-2xl font-bold text-indigo-900">{{ isLogin ? 'Welcome Back!' : 'Create Account' }}</h2>
-            <p class="text-indigo-600 mt-2">{{ isLogin ? 'Sign in to save your stories' : 'Sign up to start saving stories' }}</p>
+            <h2 class="text-2xl font-bold text-indigo-900">{{ isLogin ? 'Welcome Back!' : 'Start Your Adventure' }}</h2>
+            <p class="text-indigo-600 mt-2">
+              {{ isLogin ? 'Sign in to continue your magical journey' : 'Create an account to begin crafting magical stories' }}
+            </p>
+            <p class="text-sm text-indigo-500/75 mt-2">
+              {{ isLogin ? 'Access all your saved stories' : 'Save your stories and create unlimited adventures' }}
+            </p>
           </div>
 
           <!-- Error Message -->
@@ -48,7 +53,7 @@
               class="w-full"
               :disabled="isLoading"
             >
-              {{ isLogin ? 'Sign In' : 'Sign Up' }}
+              {{ isLogin ? 'Continue Story' : 'Start Creating' }}
             </Button>
           </form>
 
@@ -58,7 +63,7 @@
               @click="isLogin = !isLogin"
               class="text-indigo-600 hover:text-indigo-700 text-sm"
             >
-              {{ isLogin ? 'Need an account? Sign up' : 'Already have an account? Sign in' }}
+              {{ isLogin ? 'New to magical stories? Create account' : 'Already have magical stories? Sign in' }}
             </button>
           </div>
         </div>
@@ -69,6 +74,7 @@
 
 <script setup>
 import { ref } from 'vue';
+import { useRouter } from 'vue-router';
 import { useSupabase } from '../../composables/useSupabase';
 import Card from './Card.vue';
 import Button from './Button.vue';
@@ -78,6 +84,7 @@ const props = defineProps({
   isOpen: Boolean,
 });
 
+const router = useRouter();
 const emit = defineEmits(['close', 'auth-success']);
 
 const { signIn, signUp } = useSupabase();
@@ -101,7 +108,13 @@ const handleSubmit = async () => {
       if (authError) throw authError;
       emit('auth-success', user);
     }
+    
+    // Close modal after successful auth
+    setTimeout(() => {
+      close();
+    }, 500);
   } catch (e) {
+    console.error('Auth error:', e);
     error.value = e.message;
   } finally {
     isLoading.value = false;

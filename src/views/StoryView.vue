@@ -117,13 +117,19 @@ const initializeStory = async () => {
 };
 
 const handleChoice = async (choice) => {
-  console.group('Story Choice Handler');
-  console.log('Choice received:', choice);
-  console.log('Current story state:', story.value);
+  console.group('Story Choice Handler - Detailed Debug');
+  console.log('Raw choice received:', choice);
+  console.log('Choice text:', choice.text);
+  console.log('Current story pages:', story.value.pages);
 
   try {
     isLoading.value = true;
     const nextPageNumber = story.value.pages.length + 1;
+    
+    // Save the choice made for the current page
+    const currentPage = story.value.pages[story.value.pages.length - 1];
+    currentPage.selectedChoice = choice.text;
+    console.log('Updated current page with choice:', currentPage);
     
     // If we already have this page in the story, just update the current page
     if (nextPageNumber <= story.value.pages.length) {
@@ -139,7 +145,7 @@ const handleChoice = async (choice) => {
       childName: story.value.metadata.childName,
       ageGroup: story.value.metadata.ageGroup,
       theme: story.value.metadata.theme,
-      choiceMade: choice,
+      choiceMade: choice.text,
       isFirstPage: false,
       currentPage: nextPageNumber,
       totalPages: story.value.metadata.totalPages,
@@ -150,6 +156,10 @@ const handleChoice = async (choice) => {
       throw new Error('Failed to generate new page');
     }
 
+    // Set the previous choice for the new page
+    newPage.previousChoice = choice.text;
+    console.log('New page with previous choice set:', newPage);
+
     // Update story with new page in memory
     story.value.pages.push(newPage);
     story.value.metadata.currentPage = nextPageNumber;
@@ -158,7 +168,15 @@ const handleChoice = async (choice) => {
     setStoryState(story.value);
     localStorage.setItem('currentStory', JSON.stringify(story.value));
     
-    console.log('Story updated with new page:', story.value);
+    console.log('Final story state after choice:', {
+      totalPages: story.value.pages.length,
+      currentPage: story.value.metadata.currentPage,
+      pagesWithChoices: story.value.pages.map(p => ({
+        pageNumber: p.pageNumber,
+        selectedChoice: p.selectedChoice,
+        previousChoice: p.previousChoice
+      }))
+    });
   } catch (error) {
     console.error('Error handling choice:', error);
     errorMessage.value = 'Failed to generate the next part of the story. Please try again.';
@@ -169,11 +187,21 @@ const handleChoice = async (choice) => {
 };
 
 const handleSaveStory = async () => {
+  console.group('Story Save Handler - Detailed Debug');
   try {
     if (!user.value) {
       errorMessage.value = 'Please sign in to save your story';
       return;
     }
+
+    console.log('Story state before save:', {
+      pages: story.value.pages.map(p => ({
+        pageNumber: p.pageNumber,
+        selectedChoice: p.selectedChoice,
+        previousChoice: p.previousChoice,
+        choices: p.choices
+      }))
+    });
 
     isLoading.value = true;
     const { data, error } = await saveStory({
@@ -183,12 +211,15 @@ const handleSaveStory = async () => {
     });
 
     if (error) throw error;
+    
+    console.log('Save response:', data);
     router.push('/profile');
   } catch (error) {
     console.error('Error saving story:', error);
     errorMessage.value = 'Failed to save your story. Please try again.';
   } finally {
     isLoading.value = false;
+    console.groupEnd();
   }
 };
 

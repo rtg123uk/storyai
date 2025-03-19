@@ -14,7 +14,7 @@
           <div class="text-center mb-12 relative">
             <div class="absolute top-0 left-1/2 -translate-x-1/2 w-64 h-64 bg-gradient-to-r from-teal-300/20 via-blue-300/20 to-cyan-300/20 rounded-full blur-3xl -z-10 animate-pulse"></div>
             <h2 class="text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-teal-600 via-blue-600 to-cyan-600 animate-float">
-              ✨ Create Your Story ✨
+              ✨ Create Your Own Story ✨
             </h2>
             <p class="mt-4 text-xl text-teal-600 font-medium">Let's embark on a magical journey together!</p>
           </div>
@@ -44,8 +44,8 @@
                   <Input
                     v-else
                     v-model="formData.childName"
-                    label="Child's Story Name"
-                    placeholder="Enter a fun story name"
+                    label="Character Name"
+                    placeholder="Enter a character name"
                     :required="true"
                   />
 
@@ -109,21 +109,63 @@
                     </div>
 
                     <div v-if="!formData.useCustomTheme" class="grid grid-cols-2 gap-4">
-                      <Button
+                      <div
                         v-for="theme in themes"
                         :key="theme.value"
-                        :variant="formData.theme === theme.value ? 'fun' : 'secondary'"
-                        class="group relative overflow-hidden"
+                        class="relative"
                         @click="formData.theme = theme.value"
                       >
-                        <div class="absolute inset-0 bg-gradient-to-r from-teal-500 via-blue-500 to-cyan-500 opacity-0 group-hover:opacity-10 transition-opacity"></div>
-                        <div class="flex items-center gap-2 p-4">
-                          <div class="w-10 h-10 rounded-lg bg-teal-100 flex items-center justify-center transform transition-transform group-hover:scale-110 group-hover:rotate-12">
-                            <Icons :name="theme.icon" class="w-6 h-6 text-teal-600" />
-                          </div>
-                          <span class="font-medium">{{ theme.label }}</span>
+                        <div class="absolute inset-0 bg-gradient-to-r from-teal-500/20 to-blue-500/20 rounded-xl transition-opacity duration-200"
+                          :class="{ 'opacity-100': formData.theme === theme.value, 'opacity-0': formData.theme !== theme.value }">
                         </div>
-                      </Button>
+                        <div class="relative cursor-pointer rounded-xl border-2 transition-all duration-200 hover:scale-[1.02]"
+                          :class="[
+                            formData.theme === theme.value 
+                              ? 'border-teal-500 bg-white shadow-lg' 
+                              : 'border-transparent bg-white/50 hover:border-teal-200'
+                          ]"
+                        >
+                          <div class="flex items-center gap-3 p-4">
+                            <div class="relative w-14 h-14 group-hover:scale-110 transition-transform duration-300">
+                              <div class="absolute inset-0 bg-gradient-to-br from-teal-400/20 to-blue-400/20 rounded-xl blur-md"></div>
+                              <div class="relative w-full h-full rounded-xl bg-gradient-to-br from-teal-50 to-blue-50 flex items-center justify-center shadow-inner">
+                                <div class="absolute inset-0 bg-white/50 rounded-xl"></div>
+                                <div class="relative transform transition-all duration-300 group-hover:rotate-6">
+                                  <Icons 
+                                    :name="theme.icon" 
+                                    class="w-8 h-8" 
+                                    :class="[
+                                      formData.theme === theme.value 
+                                        ? 'text-teal-600' 
+                                        : 'text-teal-500'
+                                    ]"
+                                  />
+                                  <div class="absolute -inset-1 bg-gradient-to-br from-teal-400/10 to-blue-400/10 rounded-lg blur group-hover:opacity-75 transition-opacity"></div>
+                                </div>
+                              </div>
+                            </div>
+                            <div class="flex-1">
+                              <h3 class="font-medium text-teal-900">{{ theme.label }}</h3>
+                              <p class="text-sm text-teal-600/75">
+                                {{ getThemeDescription(theme.value) }}
+                              </p>
+                            </div>
+                            <div class="w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all duration-200"
+                              :class="[
+                                formData.theme === theme.value 
+                                  ? 'border-teal-500 bg-teal-500' 
+                                  : 'border-teal-200 bg-transparent'
+                              ]"
+                            >
+                              <Icons 
+                                name="check" 
+                                class="w-3 h-3 text-white"
+                                v-if="formData.theme === theme.value"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
                     </div>
 
                     <Input
@@ -138,19 +180,48 @@
                   <div class="space-y-4">
                     <label class="block text-sm font-medium text-teal-700">Story Length</label>
                     <div class="grid grid-cols-3 gap-4">
-                      <Button
+                      <div
                         v-for="length in storyLengths"
                         :key="length.value"
-                        :variant="formData.storyLength === length.value ? 'fun' : 'secondary'"
-                        class="group relative overflow-hidden"
+                        class="relative"
                         @click="formData.storyLength = length.value"
                       >
-                        <div class="absolute inset-0 bg-gradient-to-r from-teal-500 via-blue-500 to-cyan-500 opacity-0 group-hover:opacity-10 transition-opacity"></div>
-                        <div class="p-4 text-center">
-                          <div class="font-medium">{{ length.label }}</div>
-                          <div class="text-sm text-teal-600">{{ length.description }}</div>
+                        <div class="absolute inset-0 bg-gradient-to-r from-teal-500/20 to-blue-500/20 rounded-xl transition-opacity duration-200"
+                          :class="{ 'opacity-100': formData.storyLength === length.value, 'opacity-0': formData.storyLength !== length.value }">
                         </div>
-                      </Button>
+                        <div class="relative cursor-pointer rounded-xl border-2 transition-all duration-200 hover:scale-[1.02]"
+                          :class="[
+                            formData.storyLength === length.value 
+                              ? 'border-teal-500 bg-white shadow-lg' 
+                              : 'border-transparent bg-white/50 hover:border-teal-200'
+                          ]"
+                        >
+                          <div class="p-4 text-center">
+                            <div class="mb-2">
+                              <span class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-br from-teal-100 to-blue-100 text-teal-600 font-medium">
+                                {{ length.value }}
+                              </span>
+                            </div>
+                            <h3 class="font-medium text-teal-900">{{ length.label }}</h3>
+                            <p class="text-sm text-teal-600/75">{{ length.description }}</p>
+                            <div class="mt-2 flex justify-center">
+                              <div class="w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all duration-200"
+                                :class="[
+                                  formData.storyLength === length.value 
+                                    ? 'border-teal-500 bg-teal-500' 
+                                    : 'border-teal-200 bg-transparent'
+                                ]"
+                              >
+                                <Icons 
+                                  name="check" 
+                                  class="w-3 h-3 text-white"
+                                  v-if="formData.storyLength === length.value"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -261,6 +332,18 @@ const formProgressText = computed(() => {
   return `${formProgress.value}% complete - Keep going!`;
 });
 
+const getThemeDescription = (themeValue) => {
+  const descriptions = {
+    'fantasy': 'Magical realms & mythical creatures',
+    'space': 'Cosmic adventures in the stars',
+    'ocean': 'Underwater mysteries & sea friends',
+    'jungle': 'Wild adventures in nature',
+    'dinosaurs': 'Prehistoric tales & discoveries',
+    'magic': 'Spells, potions & wizardry'
+  };
+  return descriptions[themeValue] || 'Choose your adventure';
+};
+
 const startStory = async () => {
   if (!isFormValid.value) return;
 
@@ -270,12 +353,14 @@ const startStory = async () => {
     theme: formData.value.useCustomTheme ? formData.value.customTheme : formData.value.theme,
     storyLength: formData.value.storyLength,
     metadata: {
+      useCustomName: formData.value.useCustomName,
       includeFriends: formData.value.includeFriends,
-      friendNames: formData.value.friendNames,
-      numberOfFriends: formData.value.numberOfFriends
+      friendNames: formData.value.friendNames.filter(name => name?.trim()),
+      numberOfFriends: parseInt(formData.value.numberOfFriends) || 0
     }
   };
 
+  console.log('Emitting story data with friends:', storyData);
   emit('start-story', storyData);
 };
 </script>

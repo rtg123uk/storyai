@@ -107,7 +107,7 @@
             </p>
             
             <div class="flex justify-center gap-4">
-              <Button @click="$emit('save-story')" variant="fun" size="lg">
+              <Button @click="handleSaveStory" variant="fun" size="lg">
                 <span class="flex items-center gap-2">
                   <span>Save Your Adventure</span>
                   <Icons name="save" size="sm" class="text-current" />
@@ -122,20 +122,16 @@
             </div>
           </div>
 
+          <!-- Auth Modal -->
+          <AuthModal
+            v-if="showAuthModal"
+            :is-open="showAuthModal"
+            @close="showAuthModal = false"
+            @auth-success="handleAuthSuccess"
+          />
+
           <!-- Navigation Controls -->
-          <div class="flex justify-between items-center pt-6 border-t border-indigo-100">
-            <Button 
-              v-if="currentPageIndex > 0"
-              @click="$emit('previous-page')"
-              variant="outline"
-              size="sm"
-              :disabled="isGenerating"
-            >
-              <span class="flex items-center gap-2">
-                <Icons name="arrow-left" size="sm" class="text-current" />
-                Previous Page
-              </span>
-            </Button>
+          <div class="flex justify-center items-center pt-6 border-t border-indigo-100">
             <Button
               @click="$emit('restart')"
               variant="fun"
@@ -155,7 +151,7 @@
 </template>
 
 <script setup>
-import { computed, ref, watch, onUnmounted } from 'vue';
+import { computed, ref, watch, onUnmounted, onMounted } from 'vue';
 import { marked } from 'marked';
 import { textToSpeech } from '../services/elevenlabs';
 import Card from './ui/Card.vue';
@@ -164,6 +160,8 @@ import Badge from './ui/Badge.vue';
 import Progress from './ui/Progress.vue';
 import LoadingOverlay from './LoadingOverlay.vue';
 import Icons from './ui/Icons.vue';
+import AuthModal from './ui/AuthModal.vue';
+import { useSupabase } from '../composables/useSupabase';
 
 const props = defineProps({
   story: {
@@ -202,17 +200,42 @@ const emit = defineEmits(['make-choice', 'previous-page', 'restart', 'save-story
 
 const isLoadingAudio = ref(false);
 const audioPlayer = ref(null);
+const showAuthModal = ref(false);
+const { user } = useSupabase();
+
+// Check auth status when component mounts
+onMounted(() => {
+  if (!user.value) {
+    console.log('No user logged in, showing auth modal');
+    showAuthModal.value = true;
+  }
+});
 
 // Computed
 const currentPage = computed(() => {
+  console.group('Story Page - Current Page Computation');
   console.log('Computing current page:', {
     currentPageIndex: props.currentPageIndex,
-    availablePages: props.story.pages.length
+    availablePages: props.story.pages.length,
+    isReading: props.isReading
   });
-  if (!props.story?.pages?.length) return null;
+  if (!props.story?.pages?.length) {
+    console.log('No pages available');
+    console.groupEnd();
+    return null;
+  }
   const pageIndex = props.currentPageIndex - 1;
   const page = props.story.pages[pageIndex];
-  console.log('Selected page:', page);
+  console.log('Selected page:', {
+    pageNumber: page?.pageNumber,
+    title: page?.title,
+    choiceMade: page?.choiceMade,
+    previousChoice: page?.previous_choice,
+    selectedChoice: page?.selected_choice,
+    hasChoices: Boolean(page?.choices),
+    choices: page?.choices
+  });
+  console.groupEnd();
   return page || null;
 });
 
@@ -230,9 +253,21 @@ const formattedContent = computed(() => {
 
 // Methods
 const handleChoiceClick = (choice) => {
+  console.group('Story Page - Choice Click');
   console.log('Choice clicked:', choice);
-  if (props.isGenerating) return;
+  console.log('Current page state:', {
+    pageNumber: currentPage.value?.pageNumber,
+    choiceMade: currentPage.value?.choiceMade,
+    previousChoice: currentPage.value?.previous_choice,
+    selectedChoice: currentPage.value?.selected_choice
+  });
+  if (props.isGenerating) {
+    console.log('Ignoring choice click - story is generating');
+    console.groupEnd();
+    return;
+  }
   emit('make-choice', choice);
+  console.groupEnd();
 };
 
 const formatChoiceText = (text) => {
@@ -282,6 +317,56 @@ const playPageAudio = async () => {
     console.error('Error playing audio:', error);
   } finally {
     isLoadingAudio.value = false;
+  }
+};
+
+const handleAuthSuccess = async (authenticatedUser) => {
+  console.group('Auth Success Handler');
+  console.log('Auth success triggered with user:', authenticatedUser);
+  showAuthModal.value = false;
+  console.groupEnd();
+};
+
+const handleSaveStory = async () => {
+  console.group('Save Story Flow');
+  console.log('Current auth state:', { user: user.value });
+  
+  try {
+    if (!user.value) {
+      console.log('No user logged in, showing auth modal');
+      showAuthModal.value = true;
+      return;
+    }
+
+    const storyData = {
+      title: props.story.title,
+      pages: props.story.pages,
+      metadata: {
+        ...props.story.metadata,
+        saved_at: new Date().toISOString(),
+        childName: props.story.metadata.childName,
+        ageGroup: props.story.metadata.ageGroup,
+        theme: props.story.metadata.theme,
+        totalPages: props.story.metadata.totalPages
+      }
+    };
+
+    console.log('Emitting save-story event with data:', {
+      title: storyData.title,
+      pagesCount: storyData.pages.length,
+      metadata: storyData.metadata
+    });
+    
+    // Save to localStorage as backup
+    localStorage.setItem('currentStory', JSON.stringify(storyData));
+    
+    // Emit save event
+    emit('save-story', storyData);
+  } catch (e) {
+    console.error('Error in handleSaveStory:', e);
+    errorMessage.value = e.message || 'Failed to save story';
+  } finally {
+    console.groupEnd();
   }
 };
 

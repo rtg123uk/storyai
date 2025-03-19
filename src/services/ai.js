@@ -149,7 +149,7 @@ const generateCharacterPrompt = (details) => {
 
 export const generateStory = async (storyParams) => {
   console.log('Starting story generation with params:', storyParams);
-  const { childName, ageGroup, theme, storyLength, isInteractive, narrationStyle } = storyParams;
+  const { childName, ageGroup, theme, storyLength, isInteractive, narrationStyle, metadata } = storyParams;
 
   try {
     // Generate the base story structure using OpenAI
@@ -167,6 +167,7 @@ export const generateStory = async (storyParams) => {
           - Story Structure: ${randomElement(storyStructures)}
           - Theme: ${theme}
           - Age Group: ${ageGroup}
+          ${metadata?.includeFriends ? `- Friends: ${metadata.friendNames.join(', ')}` : ''}
           
           Create a story with exactly ${storyLength.split(' ')[0]} pages where:
           1. Each page has substantial content (at least 200 words)
@@ -177,6 +178,7 @@ export const generateStory = async (storyParams) => {
           6. The story must conclude within exactly ${storyLength.split(' ')[0]} pages
           7. The final page should provide a satisfying conclusion without choices
           8. Generate a UNIQUE and CREATIVE title that hasn't been used before
+          ${metadata?.includeFriends ? `9. Include the friends (${metadata.friendNames.join(', ')}) as important characters throughout the story` : ''}
           
           Requirements:
           1. Start with a fresh, unique opening that matches the selected opening style
@@ -187,6 +189,7 @@ export const generateStory = async (storyParams) => {
           6. Include meaningful character development
           7. Maintain internal consistency and logic
           8. Blend educational elements naturally into the narrative
+          ${metadata?.includeFriends ? `9. Make sure the friends play meaningful roles in the story's progression and choices` : ''}
           
           Format each page's content in markdown like this:
           # Unique Story Title That Hasn't Been Used Before
@@ -198,11 +201,13 @@ export const generateStory = async (storyParams) => {
             1. Theme: ${theme}
             2. Style: ${narrationStyle}
             3. Age Group: ${ageGroup} (adjust vocabulary accordingly)
+            ${metadata?.includeFriends ? `4. Include their friends: ${metadata.friendNames.join(', ')} as important characters` : ''}
             4. Interactive Elements:
                - Include meaningful choices on each page (except the last)
                - Each choice leads to a new adventure
                - Keep choices clear and straightforward
                - Make each path fun and engaging
+               ${metadata?.includeFriends ? `- Some choices should involve interactions with their friends` : ''}
             5. Learning Integration:
                - Include age-appropriate educational content
                - Use vocabulary suitable for ${ageGroup} age group
@@ -327,20 +332,17 @@ export const generateStory = async (storyParams) => {
         totalPages: pages.length,
         createdAt: new Date().toISOString(),
         useVoice: storyParams.useVoice,
-        selectedVoiceId: storyParams.selectedVoiceId
+        selectedVoiceId: storyParams.selectedVoiceId,
+        includeFriends: metadata?.includeFriends || false,
+        friendNames: metadata?.friendNames || []
       }
     };
 
     console.log('Final story structure:', result);
     return result;
   } catch (error) {
-    console.error('Error in AI service:', error);
-    if (error.response?.status === 429) {
-      throw new Error('Rate limit reached. Please try again later.');
-    } else if (error.response?.data?.error) {
-      throw new Error(`API error: ${error.response.data.error.message}`);
-    }
-    throw new Error(error.message || 'Failed to generate story');
+    console.error('Error generating story:', error);
+    throw error;
   }
 };
 

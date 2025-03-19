@@ -1,37 +1,50 @@
 import { createClient } from '@supabase/supabase-js';
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, onUnmounted } from 'vue';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-export function useSupabase() {
-  const user = ref(null);
-  const error = ref(null);
-  const isLoading = ref(false);
+// Create singletons for auth state
+const user = ref(null);
+const error = ref(null);
+const isLoading = ref(false);
+let authStateListener = null;
 
-  // Initialize user on mount
-  const initUser = async () => {
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        console.log('User authenticated from session:', session.user);
-        user.value = session.user;
-      } else {
-        console.log('No authenticated user session');
-      }
-    } catch (e) {
-      console.error('Error initializing user:', e);
-      error.value = e.message;
+// Initialize user session
+const initUser = async () => {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.user) {
+      console.log('User authenticated from session:', session.user);
+      user.value = session.user;
+    } else {
+      console.log('No authenticated user session');
     }
-  };
+  } catch (e) {
+    console.error('Error initializing user:', e);
+    error.value = e.message;
+  }
+};
 
-  // Call initUser when the composable is created
-  onMounted(() => {
-    initUser();
-  });
+// Initialize auth state listener
+const initAuthListener = () => {
+  if (!authStateListener) {
+    authStateListener = supabase.auth.onAuthStateChange((event, session) => {
+      if (import.meta.env.DEV) {
+        console.log('Auth state changed:', { event, user: session?.user });
+      }
+      user.value = session?.user || null;
+    });
+  }
+};
 
+// Initialize auth state
+initUser();
+initAuthListener();
+
+export function useSupabase() {
   // Auth functions
   const signIn = async (email, password) => {
     isLoading.value = true;
@@ -67,7 +80,17 @@ export function useSupabase() {
       });
       if (authError) throw authError;
       
-      console.log('Sign up successful:', data.user);
+      console.log('Sign up response:', data);
+      
+      if (data.user && !data.session) {
+        console.log('Email confirmation required. User created but not confirmed:', data.user);
+        localStorage.setItem('pendingUser', JSON.stringify(data.user));
+        return { 
+          user: data.user,
+          message: 'Please check your email to confirm your account. Your story will be saved automatically after confirmation.' 
+        };
+      }
+      
       user.value = data.user;
       return { user: data.user };
     } catch (e) {
@@ -131,6 +154,17 @@ export function useSupabase() {
   };
 
   const saveStory = async (storyData) => {
+    console.group('Supabase Save Story - Detailed Debug');
+    console.log('Initial story data received:', {
+      title: storyData.title,
+      pagesCount: storyData.pages?.length,
+      pagesSummary: storyData.pages?.map(p => ({
+        title: p.title,
+        selectedChoice: p.selectedChoice,
+        previousChoice: p.previousChoice
+      }))
+    });
+
     if (!user.value?.id) {
       error.value = 'User must be authenticated to save stories';
       return { error: 'Authentication required' };
@@ -166,17 +200,34 @@ export function useSupabase() {
         .single();
 
       if (storyError) throw storyError;
+      console.log('Story record created:', story);
 
       // Then save all pages
       if (Array.isArray(pages)) {
-        const pagesData = pages.map((page, index) => ({
-          story_id: story.id,
-          page_number: index + 1,
-          content: page.content,
-          title: page.title || `Page ${index + 1}`,
-          choices: page.choices || [],
-          previous_choice: page.previousChoice || null
-        }));
+        const pagesData = pages.map((page, index) => {
+          const pageData = {
+            story_id: story.id,
+            page_number: index + 1,
+            content: page.content,
+            title: page.title || `Page ${index + 1}`,
+            choices: page.choices || [],
+            previous_choice: page.previousChoice || page.selectedChoice || null
+          };
+          console.log(`Preparing page ${index + 1} data:`, {
+            pageNumber: pageData.page_number,
+            previousChoice: pageData.previous_choice,
+            sourceChoice: {
+              previousChoice: page.previousChoice,
+              selectedChoice: page.selectedChoice
+            }
+          });
+          return pageData;
+        });
+
+        console.log('Final pages data to insert:', pagesData.map(p => ({
+          pageNumber: p.page_number,
+          previousChoice: p.previous_choice
+        })));
 
         const { error: pagesError } = await supabase
           .from('pages')
@@ -205,32 +256,35 @@ export function useSupabase() {
 
       if (fetchError) throw fetchError;
 
-      console.log('Story saved successfully:', completeStory);
+      console.log('Complete story after save:', {
+        id: completeStory.id,
+        title: completeStory.title,
+        pagesWithChoices: completeStory.pages.map(p => ({
+          pageNumber: p.page_number,
+          previousChoice: p.previous_choice
+        }))
+      });
+      console.groupEnd();
       return { data: completeStory };
     } catch (e) {
       console.error('Error in saveStory:', e);
       error.value = e.message;
+      console.groupEnd();
       return { error: e.message };
     } finally {
       isLoading.value = false;
     }
   };
 
-  // Auth state change listener
-  supabase.auth.onAuthStateChange((event, session) => {
-    console.log('Auth state changed:', { event, user: session?.user });
-    user.value = session?.user || null;
-  });
-
   return {
-    supabase,
     user,
     error,
     isLoading,
     signIn,
     signUp,
     signOut,
+    supabase,
     getStories,
-    saveStory,
+    saveStory
   };
 } 

@@ -37,6 +37,7 @@ const storyState = provideStoryState();
 const router = useRouter();
 const isLoading = ref(false);
 const currentStory = ref(null);
+const errorMessage = ref(null);
 
 const handleRestart = () => {
   // Clear any existing story state
@@ -91,7 +92,12 @@ const handleStartStory = async (storyData) => {
       isFirstPage: true,
       currentPage: 0,
       totalPages: totalPages,
-      previousPages: []
+      previousPages: [],
+      metadata: {
+        useCustomName: storyData.metadata?.useCustomName || false,
+        includeFriends: storyData.metadata?.includeFriends || false,
+        friendNames: storyData.metadata?.friendNames || []
+      }
     });
 
     console.log('Generated first page:', firstPage);
@@ -115,15 +121,10 @@ const handleStartStory = async (storyData) => {
     await router.push('/story');
     console.log('Navigation completed');
   } catch (error) {
-    console.error('Error in handleStartStory:', error);
-    // If there's an error, stay on the create page
-    if (router.currentRoute.value.name !== 'create') {
-      console.log('Redirecting to /create');
-      await router.push('/create');
-    }
+    console.error('Error starting story:', error);
+    errorMessage.value = error.message || 'Failed to start story';
   } finally {
     isLoading.value = false;
-    console.log('Story generation process completed');
   }
 };
 

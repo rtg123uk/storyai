@@ -17,7 +17,6 @@ module.exports = {
     },
     extend: {
       fontFamily: {
-        sans: ['ABeeZee', 'sans-serif'],
         'quicksand': ['Quicksand', 'sans-serif'],
         'comic': ['Comic Neue', 'cursive'],
         'abeezee': ['ABeeZee', 'sans-serif'],
