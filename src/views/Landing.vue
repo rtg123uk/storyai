@@ -207,39 +207,20 @@
           </Button>
         </div>
       </div>
-
-      <!-- Auth Modal -->
-      <AuthModal 
-        :is-open="showAuthModal"
-        @close="handleAuthModalClose"
-        @auth-success="handleAuthSuccess"
-      />
     </div>
   </template>
   
   <script setup>
-  import { ref, onMounted } from 'vue';
-  import { useRouter, useRoute } from 'vue-router';
+  import { ref, inject } from 'vue';
+  import { useRouter } from 'vue-router';
   import { useSupabase } from '../composables/useSupabase';
   import Button from '../components/ui/Button.vue';
   import Card from '../components/ui/Card.vue';
   import Icons from '../components/ui/Icons.vue';
-  import AuthModal from '../components/ui/AuthModal.vue';
   
   const router = useRouter();
-  const route = useRoute();
   const { user } = useSupabase();
-  
-  const showAuthModal = ref(false);
-  const returnTo = ref('');
-  
-  // Watch for auth query parameter
-  onMounted(() => {
-    if (route.query.auth === 'required') {
-      showAuthModal.value = true;
-      returnTo.value = route.query.returnTo || '/create';
-    }
-  });
+  const { showAuthModal, returnTo } = inject('authState');
   
   const features = [
     {
@@ -335,20 +316,6 @@
       returnTo.value = '/create';
     } else {
       router.push('/create');
-    }
-  };
-  
-  const handleAuthSuccess = async (authenticatedUser) => {
-    console.log('Auth success, redirecting to:', returnTo.value);
-    showAuthModal.value = false;
-    await router.push(returnTo.value || '/create');
-  };
-  
-  const handleAuthModalClose = () => {
-    showAuthModal.value = false;
-    // If we came from another page, clear the query params
-    if (route.query.auth) {
-      router.replace({ query: {} });
     }
   };
   </script>

@@ -160,7 +160,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, inject } from 'vue';
 import { useRouter } from 'vue-router';
 import { useSupabase } from '../../composables/useSupabase';
 import Icons from './Icons.vue';
@@ -168,9 +168,12 @@ import Button from './Button.vue';
 import AuthModal from './AuthModal.vue';
 
 const router = useRouter();
-const { user, signOut, isLoading } = useSupabase();
+const { user, signOut } = useSupabase();
 const isMenuOpen = ref(false);
-const showAuthModal = ref(false);
+const isLoading = ref(false);
+
+// Inject auth state
+const { showAuthModal, returnTo } = inject('authState');
 
 const navigationItems = computed(() => [
   { name: 'Create Story', path: '/create', icon: 'book' },
@@ -178,12 +181,24 @@ const navigationItems = computed(() => [
 ]);
 
 const handleSignOut = async () => {
-  await signOut();
-  router.push('/');
+  try {
+    isLoading.value = true;
+    await signOut();
+    router.push('/');
+  } catch (error) {
+    console.error('Error signing out:', error);
+  } finally {
+    isLoading.value = false;
+  }
 };
 
 const handleAuthSuccess = () => {
   showAuthModal.value = false;
   // Optionally refresh the page or update the UI
+};
+
+const handleSignIn = () => {
+  showAuthModal.value = true;
+  returnTo.value = router.currentRoute.value.fullPath;
 };
 </script> 

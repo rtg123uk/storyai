@@ -20,24 +20,62 @@
 
     <!-- Loading Overlay -->
     <LoadingOverlay v-if="isLoading" />
+
+    <!-- Auth Modal -->
+    <AuthModal v-if="showAuthModal" @success="handleAuthSuccess" @close="handleAuthModalClose" />
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
+import { ref, onMounted, provide } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
 import Header from './components/ui/Header.vue';
 import LoadingOverlay from './components/LoadingOverlay.vue';
+import AuthModal from './components/ui/AuthModal.vue';
 import { generateStoryPage } from './services/ai';
 import { provideStoryState } from './composables/useStoryState';
+import { useSupabase } from './composables/useSupabase';
 
 // Initialize story state first
 const storyState = provideStoryState();
 
 const router = useRouter();
+const route = useRoute();
+const { user } = useSupabase();
+
 const isLoading = ref(false);
 const currentStory = ref(null);
 const errorMessage = ref(null);
+const showAuthModal = ref(false);
+const returnTo = ref('');
+
+// Provide auth state to all components
+provide('authState', {
+  showAuthModal,
+  returnTo
+});
+
+// Watch for auth query parameter
+onMounted(() => {
+  if (route.query.auth === 'required') {
+    showAuthModal.value = true;
+    returnTo.value = route.query.returnTo || '/create';
+  }
+});
+
+const handleAuthSuccess = async (authenticatedUser) => {
+  console.log('Auth success, redirecting to:', returnTo.value);
+  showAuthModal.value = false;
+  await router.push(returnTo.value || '/create');
+};
+
+const handleAuthModalClose = () => {
+  showAuthModal.value = false;
+  // If we came from another page, clear the query params
+  if (route.query.auth) {
+    router.replace({ query: {} });
+  }
+};
 
 const handleRestart = () => {
   // Clear any existing story state
