@@ -41,15 +41,6 @@
               </Button>
             </div>
           </template>
-          <template v-else>
-            <Button 
-              @click="showAuthModal = true" 
-              variant="fun" 
-              size="sm"
-            >
-              Sign In
-            </Button>
-          </template>
         </nav>
 
         <!-- Mobile Menu Button -->
@@ -133,15 +124,6 @@
                       </Button>
                     </div>
                   </template>
-                  <template v-else>
-                    <Button 
-                      @click="showAuthModal = true" 
-                      variant="fun" 
-                      class="w-full"
-                    >
-                      Sign In
-                    </Button>
-                  </template>
                 </div>
               </div>
             </nav>
@@ -194,12 +176,42 @@ const handleSignOut = async () => {
 };
 
 const handleSignIn = () => {
-  console.group('Header - Sign In');
-  console.log('Opening auth modal');
-  console.log('Current route:', router.currentRoute.value.fullPath);
+  console.group('Header - Sign In Flow');
+  console.log('Starting sign in process');
+  console.log('Initial state:', {
+    showAuthModal: showAuthModal.value,
+    returnTo: returnTo.value,
+    isMenuOpen: isMenuOpen.value,
+    currentRoute: router.currentRoute.value.fullPath
+  });
+
+  // Set auth state
   showAuthModal.value = true;
-  returnTo.value = router.currentRoute.value.fullPath;
-  console.log('Auth state set:', { showModal: showAuthModal.value, returnTo: returnTo.value });
+  returnTo.value = '/create';
+
+  console.log('Updated state:', {
+    showAuthModal: showAuthModal.value,
+    returnTo: returnTo.value,
+    modalExists: !!document.querySelector('.fixed.inset-0.z-\\[100\\]'),
+    authModalComponent: !!document.querySelector('.auth-modal')
+  });
+  
+  // Close mobile menu if open
+  if (isMenuOpen.value) {
+    isMenuOpen.value = false;
+    console.log('Closed mobile menu');
+  }
+
+  // Add a small delay to check if the modal state persists
+  setTimeout(() => {
+    console.log('State after delay:', {
+      showAuthModal: showAuthModal.value,
+      returnTo: returnTo.value,
+      modalExists: !!document.querySelector('.fixed.inset-0.z-\\[100\\]'),
+      authModalComponent: !!document.querySelector('.auth-modal')
+    });
+  }, 100);
+
   console.groupEnd();
 };
 </script> 
